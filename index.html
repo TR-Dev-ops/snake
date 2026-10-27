@@ -1,0 +1,447 @@
+<title>Snake '97</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Archivo:wght@500;800&display=swap">
+<style>
+/* Layout: one candy-bar phone centered on a dark desk; the LCD is the game, the keypad is the controller. Single dark look by design. */
+:root {
+  --desk: #121a22;
+  --desk-hi: #1d2b38;
+  --shell: #27395c;
+  --shell-dk: #17223a;
+  --bezel: #0e131b;
+  --key: #c9d2dc;
+  --key-dk: #8e9bab;
+  --key-ink: #1b2433;
+  --lcd: #c7f0d8;
+  --pix: #43523d;
+  --ink: #d7e0e8;
+  --muted: #8796a6;
+  --font-lcd: "Silkscreen", "Courier New", monospace;
+  --font-ui: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: radial-gradient(ellipse at 50% 20%, var(--desk-hi), var(--desk) 70%) fixed, var(--desk);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  padding-block: 28px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+.phone {
+  width: min(340px, 100%);
+  box-sizing: border-box;
+  background: linear-gradient(160deg, #34507f 0%, var(--shell) 35%, var(--shell-dk) 100%);
+  border-radius: 64px 64px 96px 96px / 44px 44px 110px 110px;
+  padding: 26px 22px 46px;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.18), inset 0 -6px 14px rgba(0,0,0,.45), 0 24px 50px rgba(0,0,0,.55);
+  display: flex; flex-direction: column; gap: 18px;
+  user-select: none; -webkit-user-select: none;
+}
+.speaker { align-self: center; width: 56px; height: 6px; border-radius: 3px; background: repeating-linear-gradient(90deg, var(--bezel) 0 4px, transparent 4px 7px); opacity: .8; }
+.bezel {
+  background: var(--bezel);
+  border-radius: 18px 18px 30px 30px / 18px 18px 40px 40px;
+  padding: 14px 14px 22px;
+  display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+  box-shadow: inset 0 0 0 2px #1e2633;
+}
+.brand { text-align: center; font: 800 11px/1 var(--font-ui); letter-spacing: .32em; color: var(--muted); }
+.lcd {
+  background: var(--lcd);
+  border-radius: 4px;
+  padding: 6px;
+  box-shadow: inset 0 0 18px rgba(30,60,40,.35);
+  touch-action: none;
+  outline: none;
+}
+.lcd:focus-visible { box-shadow: inset 0 0 18px rgba(30,60,40,.35), 0 0 0 3px #7fb4ff; }
+canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.nav { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 12px; align-items: center; }
+.keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 14px; }
+button.k {
+  font-family: var(--font-ui);
+  border: 0; cursor: pointer;
+  background: linear-gradient(var(--key), var(--key-dk));
+  color: var(--key-ink);
+  border-radius: 40% 40% 48% 48% / 50% 50% 60% 60%;
+  height: 40px;
+  display: flex; align-items: baseline; justify-content: center; gap: 5px;
+  padding: 9px 0 0;
+  box-shadow: 0 3px 0 #0b1220, inset 0 1px 0 rgba(255,255,255,.7);
+  transition: transform .05s, box-shadow .05s;
+  touch-action: manipulation;
+}
+button.k b { font-weight: 800; font-size: 18px; line-height: 1; }
+button.k small { font-weight: 500; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+button.k.on, button.k:active { transform: translateY(2px); box-shadow: 0 1px 0 #0b1220, inset 0 1px 0 rgba(255,255,255,.5); }
+button.k.dir b { color: #20406e; }
+button.ok { height: 44px; padding-top: 0; align-items: center; border-radius: 50% / 60%; background: linear-gradient(#9fb4cc, #6f84a0); }
+button.ok b { font-size: 14px; letter-spacing: .12em; }
+.rocker { display: flex; flex-direction: column; gap: 4px; }
+.rocker button.k { height: 22px; padding: 0; align-items: center; border-radius: 12px; }
+.rocker button.k b { font-size: 11px; }
+.help { max-width: 34em; text-align: center; font-size: 13px; line-height: 1.6; color: var(--muted); text-wrap: balance; margin: 0; }
+.help kbd { font-family: var(--font-lcd); font-size: 11px; color: var(--ink); background: #233140; border-radius: 4px; padding: 1px 5px; }
+@media (prefers-reduced-motion: reduce) { button.k { transition: none; } }
+</style>
+
+<div class="phone">
+  <div class="speaker"></div>
+  <div class="bezel">
+    <div class="brand">SNAKE '97</div>
+    <div class="lcd" id="lcdWrap" tabindex="0" aria-label="Snake game screen. Use arrow keys to steer, Enter to select.">
+      <canvas id="lcd" width="672" height="412"></canvas>
+    </div>
+  </div>
+  <div class="nav">
+    <button class="k" data-k="back" tabindex="-1" aria-label="C, back or pause"><b>C</b></button>
+    <button class="k ok" data-k="ok" tabindex="-1" aria-label="OK"><b>OK</b></button>
+    <div class="rocker">
+      <button class="k" data-k="up" tabindex="-1" aria-label="Up"><b>▲</b></button>
+      <button class="k" data-k="down" tabindex="-1" aria-label="Down"><b>▼</b></button>
+    </div>
+  </div>
+  <div class="keys">
+    <button class="k" data-k="none" tabindex="-1"><b>1</b><small>o_o</small></button>
+    <button class="k dir" data-k="up" tabindex="-1"><b>2</b><small>abc</small></button>
+    <button class="k" data-k="none" tabindex="-1"><b>3</b><small>def</small></button>
+    <button class="k dir" data-k="left" tabindex="-1"><b>4</b><small>ghi</small></button>
+    <button class="k dir" data-k="ok" tabindex="-1"><b>5</b><small>jkl</small></button>
+    <button class="k dir" data-k="right" tabindex="-1"><b>6</b><small>mno</small></button>
+    <button class="k" data-k="none" tabindex="-1"><b>7</b><small>pqrs</small></button>
+    <button class="k dir" data-k="down" tabindex="-1"><b>8</b><small>tuv</small></button>
+    <button class="k" data-k="none" tabindex="-1"><b>9</b><small>wxyz</small></button>
+    <button class="k" data-k="none" tabindex="-1"><b>*</b><small>+</small></button>
+    <button class="k" data-k="none" tabindex="-1"><b>0</b><small>␣</small></button>
+    <button class="k" data-k="sound" tabindex="-1" aria-label="Sound on or off"><b>#</b><small>♪</small></button>
+  </div>
+</div>
+
+<p class="help">Steer with <kbd>2</kbd> <kbd>4</kbd> <kbd>6</kbd> <kbd>8</kbd>, the arrow keys, WASD, or swipe the screen. <kbd>5</kbd> or <kbd>Enter</kbd> selects, <kbd>C</kbd> or <kbd>Esc</kbd> pauses, <kbd>#</kbd> mutes. Every 5th snack brings a bug worth bonus points before it runs away.</p>
+
+<script>
+(() => {
+  const S = 4, W = 168, H = 103, COLS = 41, ROWS = 22, OX = 2, OY = 13;
+  const LCD = '#c7f0d8', PIX = '#43523d';
+  const SPEED = [0, 300, 250, 210, 175, 145, 120, 100, 82, 66];
+  const cv = document.getElementById('lcd');
+  const ctx = cv.getContext('2d');
+  const wrap = document.getElementById('lcdWrap');
+
+  const st = {
+    mode: 'menu', menuIdx: 0, level: 5, maze: 0, sound: true,
+    snake: [], dir: { x: 1, y: 0 }, q: [], food: null, bug: null, bugT: 0,
+    eaten: 0, score: 0, grow: 0, blink: 0, acc: 0, newHi: false
+  };
+  let hi = 0;
+  try { hi = parseInt(localStorage.getItem('snake97-hi') || '0', 10) || 0; } catch (e) {}
+
+  /* ---------- sound ---------- */
+  let ac = null;
+  function ensureAudio() {
+    if (ac) { if (ac.state === 'suspended') ac.resume().catch(() => {}); return; }
+    try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  }
+  function beep(f, d = 0.05, f2 = f, vol = 0.05) {
+    if (!st.sound || !ac) return;
+    try {
+      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+      o.type = 'square';
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.linearRampToValueAtTime(f2, t + d);
+      g.gain.setValueAtTime(vol, t);
+      g.gain.setValueAtTime(0, t + d);
+      o.connect(g).connect(ac.destination);
+      o.start(t); o.stop(t + d + 0.02);
+    } catch (e) {}
+  }
+
+  /* ---------- drawing helpers ---------- */
+  function px(x, y, w = 1, h = 1, c = PIX) { ctx.fillStyle = c; ctx.fillRect(x * S, y * S, w * S, h * S); }
+  function text(s, x, y, size = 8, c = PIX, align = 'left') {
+    ctx.fillStyle = c;
+    ctx.font = `${size * S}px "Silkscreen", "Courier New", monospace`;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = align;
+    ctx.fillText(s, x * S, y * S);
+  }
+  const pad = n => String(n).padStart(4, '0');
+
+  /* ---------- game logic ---------- */
+  const occupied = (x, y) =>
+    st.snake.some(s => s.x === x && s.y === y) ||
+    (st.food && st.food.x === x && st.food.y === y) ||
+    (st.bug && st.bug.y === y && (st.bug.x === x || st.bug.x + 1 === x));
+
+  function freeCell(wide) {
+    for (let i = 0; i < 400; i++) {
+      const x = Math.floor(Math.random() * (COLS - (wide ? 1 : 0)));
+      const y = Math.floor(Math.random() * ROWS);
+      if (!occupied(x, y) && (!wide || !occupied(x + 1, y))) return { x, y };
+    }
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS - (wide ? 1 : 0); x++)
+      if (!occupied(x, y) && (!wide || !occupied(x + 1, y))) return { x, y };
+    return null;
+  }
+
+  function newGame() {
+    st.snake = [];
+    for (let i = 0; i < 6; i++) st.snake.push({ x: 12 - i, y: 11 });
+    st.dir = { x: 1, y: 0 }; st.q = [];
+    st.score = 0; st.eaten = 0; st.grow = 0; st.bug = null; st.food = null; st.newHi = false;
+    st.food = freeCell(false);
+    st.acc = 0; st.mode = 'play';
+    beep(660, 0.06); setTimeout(() => beep(990, 0.08), 70);
+  }
+
+  function die() {
+    st.mode = 'dying'; st.blink = 7; st.acc = 0;
+    beep(300, 0.35, 70, 0.06);
+    if (st.score > hi) {
+      hi = st.score; st.newHi = true;
+      try { localStorage.setItem('snake97-hi', String(hi)); } catch (e) {}
+    }
+  }
+
+  function step() {
+    if (st.q.length) st.dir = st.q.shift();
+    const h = st.snake[0];
+    let nx = h.x + st.dir.x, ny = h.y + st.dir.y;
+    if (st.maze === 0) { nx = (nx + COLS) % COLS; ny = (ny + ROWS) % ROWS; }
+    else if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) return die();
+    const body = st.grow > 0 ? st.snake : st.snake.slice(0, -1);
+    if (body.some(s => s.x === nx && s.y === ny)) return die();
+
+    st.snake.unshift({ x: nx, y: ny });
+    if (st.grow > 0) st.grow--; else st.snake.pop();
+
+    if (st.food && nx === st.food.x && ny === st.food.y) {
+      st.score += st.level; st.eaten++; st.grow += 1;
+      beep(1400, 0.035);
+      st.food = freeCell(false);
+      if (st.eaten % 5 === 0 && !st.bug) { st.bug = freeCell(true); st.bugT = 40; }
+    }
+    if (st.bug) {
+      if (ny === st.bug.y && (nx === st.bug.x || nx === st.bug.x + 1)) {
+        st.score += st.level * 5 + st.bugT;
+        st.grow += 2; st.bug = null;
+        beep(900, 0.05); setTimeout(() => beep(1600, 0.07), 60);
+      } else if (--st.bugT <= 0) st.bug = null;
+    }
+  }
+
+  function queueDir(d) {
+    const last = st.q.length ? st.q[st.q.length - 1] : st.dir;
+    if ((d.x === -last.x && d.y === -last.y) || (d.x === last.x && d.y === last.y)) return;
+    if (st.q.length < 3) st.q.push(d);
+  }
+
+  const MENU = ['New game', 'Level', 'Maze', 'Sound'];
+  function menuAdjust(delta) {
+    if (st.menuIdx === 1) st.level = ((st.level - 1 + delta + 9) % 9) + 1;
+    if (st.menuIdx === 2) st.maze ^= 1;
+    if (st.menuIdx === 3) st.sound = !st.sound;
+  }
+
+  const DIRS = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+  function input(k) {
+    ensureAudio();
+    if (k === 'sound') { st.sound = !st.sound; beep(1200, 0.04); return; }
+    if (k === 'none') { beep(1800, 0.02); return; }
+    switch (st.mode) {
+      case 'menu':
+        if (k === 'up') st.menuIdx = (st.menuIdx + MENU.length - 1) % MENU.length;
+        else if (k === 'down') st.menuIdx = (st.menuIdx + 1) % MENU.length;
+        else if (k === 'left') menuAdjust(-1);
+        else if (k === 'right') menuAdjust(1);
+        else if (k === 'ok') { if (st.menuIdx === 0) return newGame(); menuAdjust(1); }
+        beep(1800, 0.02);
+        break;
+      case 'play':
+        if (DIRS[k]) queueDir(DIRS[k]);
+        else if (k === 'ok' || k === 'back') { st.mode = 'pause'; beep(700, 0.05); }
+        break;
+      case 'pause':
+        if (k === 'ok' || DIRS[k]) { st.mode = 'play'; st.acc = 0; if (DIRS[k]) queueDir(DIRS[k]); }
+        else if (k === 'back') st.mode = 'menu';
+        break;
+      case 'over':
+        if (k === 'ok') newGame();
+        else if (k === 'back') st.mode = 'menu';
+        break;
+    }
+  }
+
+  /* ---------- rendering ---------- */
+  function cellXY(c) { return [OX + c.x * 4, OY + c.y * 4]; }
+
+  function drawField(showSnake = true) {
+    // score bar
+    text(pad(st.score), 1, 1);
+    if (st.bug) {
+      text(String(st.bugT).padStart(2, '0'), W - 1, 1, 8, PIX, 'right');
+      drawBugSprite(W - 26, 2);
+    }
+    // border
+    px(0, 11, W, 1); px(0, H - 1, W, 1); px(0, 11, 1, H - 11); px(W - 1, 11, 1, H - 11);
+    if (st.maze) { px(1, 12, W - 2, 1); px(1, H - 2, W - 2, 1); px(1, 12, 1, H - 13); px(W - 2, 12, 1, H - 13); }
+
+    // food: little diamond
+    if (st.food) {
+      const [x, y] = cellXY(st.food);
+      px(x + 1, y); px(x, y + 1); px(x + 2, y + 1); px(x + 1, y + 2);
+    }
+    if (st.bug) { const [x, y] = cellXY(st.bug); drawBugSprite(x, y); }
+
+    if (!showSnake) return;
+    const sn = st.snake;
+    for (let i = 0; i < sn.length; i++) {
+      const [x, y] = cellXY(sn[i]);
+      px(x, y, 3, 3);
+      const b = sn[i + 1];
+      if (b) {
+        const a = sn[i];
+        if (b.y === a.y && b.x === a.x + 1) px(x + 3, y, 1, 3);
+        else if (b.y === a.y && a.x === b.x + 1) px(x - 1, y, 1, 3);
+        else if (b.x === a.x && b.y === a.y + 1) px(x, y + 3, 3, 1);
+        else if (b.x === a.x && a.y === b.y + 1) px(x, y - 1, 3, 1);
+      }
+    }
+    // open mouth when food is right ahead
+    const h = sn[0], d = st.q[0] || st.dir;
+    const ahead = st.food && st.food.x === h.x + d.x && st.food.y === h.y + d.y;
+    const [hx, hy] = cellXY(h);
+    if (ahead) px(hx + 1 + d.x, hy + 1 + d.y, 1, 1, LCD);
+    else px(hx + (d.x > 0 ? 2 : d.x < 0 ? 0 : 1), hy + (d.y > 0 ? 2 : d.y < 0 ? 0 : 1) - (d.x ? 1 : 0), 1, 1, LCD); // eye
+  }
+
+  const BUG = ['0100010', '1111111', '0101010'];
+  function drawBugSprite(x, y) {
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 7; c++) if (BUG[r][c] === '1') px(x + c, y + r);
+  }
+
+  function drawMenu() {
+    text('SNAKE', W / 2, 3, 16, PIX, 'center');
+    // tiny snake under the title
+    for (let i = 0; i < 9; i++) px(52 + i * 4, 24 + (i % 2 ? 0 : 0), 3, 3);
+    for (let i = 0; i < 8; i++) px(55 + i * 4, 24, 1, 3);
+    px(89, 25, 1, 1, LCD);
+    px(97, 24); px(96, 25); px(98, 25); px(97, 26);
+
+    const vals = ['', String(st.level), st.maze ? 'Box' : 'Open', st.sound ? 'On' : 'Off'];
+    MENU.forEach((m, i) => {
+      const y = 32 + i * 13;
+      const sel = i === st.menuIdx;
+      if (sel) px(4, y - 1, W - 8, 11);
+      const c = sel ? LCD : PIX;
+      text(m, 8, y, 8, c);
+      if (vals[i]) text(vals[i], W - 8, y, 8, c, 'right');
+    });
+    text('Top score ' + pad(hi), W / 2, 88, 8, PIX, 'center');
+  }
+
+  function drawBox(lines) {
+    const h = lines.length * 11 + 8, y0 = Math.round((H - h) / 2) + 4;
+    px(20, y0, W - 40, h, LCD);
+    px(20, y0, W - 40, 1); px(20, y0 + h - 1, W - 40, 1); px(20, y0, 1, h); px(W - 21, y0, 1, h);
+    lines.forEach((l, i) => text(l, W / 2, y0 + 5 + i * 11, 8, PIX, 'center'));
+  }
+
+  function drawOver() {
+    text('Game over!', W / 2, 6, 8, PIX, 'center');
+    text('Your score', W / 2, 24, 8, PIX, 'center');
+    text(pad(st.score), W / 2, 36, 16, PIX, 'center');
+    text(st.newHi ? 'New top score!' : 'Top ' + pad(hi), W / 2, 62, 8, PIX, 'center');
+    px(4, 77, W - 8, 11);
+    text('OK  play again', W / 2, 78, 8, LCD, 'center');
+    text('C  menu', W / 2, 92, 8, PIX, 'center');
+  }
+
+  function lcdGrid() {
+    ctx.fillStyle = 'rgba(199,240,216,0.35)';
+    for (let x = 0; x < W; x++) ctx.fillRect(x * S + S - 1, 0, 1, H * S);
+    for (let y = 0; y < H; y++) ctx.fillRect(0, y * S + S - 1, W * S, 1);
+  }
+
+  function render() {
+    ctx.fillStyle = LCD; ctx.fillRect(0, 0, cv.width, cv.height);
+    if (st.mode === 'menu') drawMenu();
+    else if (st.mode === 'play') drawField();
+    else if (st.mode === 'pause') { drawField(); drawBox(['Paused', 'OK to go on']); }
+    else if (st.mode === 'dying') drawField(st.blink % 2 === 0);
+    else if (st.mode === 'over') drawOver();
+    lcdGrid();
+  }
+
+  let last = performance.now();
+  function frame(t) {
+    const dt = Math.min(100, t - last); last = t;
+    if (st.mode === 'play') {
+      st.acc += dt;
+      const iv = SPEED[st.level];
+      while (st.acc >= iv && st.mode === 'play') { st.acc -= iv; step(); }
+    } else if (st.mode === 'dying') {
+      st.acc += dt;
+      if (st.acc >= 170) { st.acc = 0; if (--st.blink <= 0) st.mode = 'over'; }
+    }
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- controls ---------- */
+  document.querySelectorAll('button.k').forEach(b => {
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      b.classList.add('on');
+      input(b.dataset.k);
+    });
+    const up = () => b.classList.remove('on');
+    b.addEventListener('pointerup', up);
+    b.addEventListener('pointerleave', up);
+    b.addEventListener('pointercancel', up);
+  });
+
+  const KEYMAP = {
+    ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right',
+    2: 'up', 8: 'down', 4: 'left', 6: 'right', 5: 'ok',
+    Enter: 'ok', ' ': 'ok', Escape: 'back', Backspace: 'back', p: 'back', P: 'back', c: 'back', C: 'back',
+    '#': 'sound', m: 'sound', M: 'sound'
+  };
+  window.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = KEYMAP[e.key];
+    if (!k) return;
+    e.preventDefault();
+    if (e.repeat && (k === 'ok' || k === 'back' || k === 'sound')) return;
+    input(k);
+  });
+
+  let sx = 0, sy = 0, swiping = false;
+  wrap.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; swiping = true; wrap.focus(); });
+  wrap.addEventListener('pointerup', e => {
+    if (!swiping) return; swiping = false;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 18) { if (st.mode !== 'play') input('ok'); return; }
+    input(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  });
+
+  document.addEventListener('visibilitychange', () => { if (document.hidden && st.mode === 'play') st.mode = 'pause'; });
+
+  function start(data) {
+    if (data && data.level) { st.level = data.level; st.maze = data.maze || 0; st.sound = data.sound !== false; }
+    const go = () => requestAnimationFrame(frame);
+    if (document.fonts && document.fonts.load) {
+      Promise.race([document.fonts.load('32px "Silkscreen"'), new Promise(r => setTimeout(r, 1500))]).then(go, go);
+    } else go();
+  }
+  window.claude?.hot?.snapshot?.(() => ({ level: st.level, maze: st.maze, sound: st.sound }));
+  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
